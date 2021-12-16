@@ -32,9 +32,7 @@ func NewExampleStack(scope constructs.Construct, id string, props *ExampleStackP
 		MemorySize: jsii.Number(1024),
 		Timeout:    awscdk.Duration_Millis(jsii.Number(15000)),
 	})
-	fi := awsapigatewayv2integrations.NewHttpLambdaIntegration(jsii.String("handlerIntegration"), f, &awsapigatewayv2integrations.HttpLambdaIntegrationProps{
-		// PayloadFormatVersion: awsapigatewayv2.PayloadFormatVersion_VERSION_2_0(),
-	})
+	fi := awsapigatewayv2integrations.NewHttpLambdaIntegration(jsii.String("handlerIntegration"), f, &awsapigatewayv2integrations.HttpLambdaIntegrationProps{})
 	endpoint := awsapigatewayv2.NewHttpApi(stack, jsii.String("apigatewayV2Example"), &awsapigatewayv2.HttpApiProps{
 		DefaultIntegration: fi,
 	})
