@@ -457,3 +457,24 @@ func TestHTTPHandlers(t *testing.T) {
 		})
 	}
 }
+
+func TestIsTextType(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+	}{
+		{"text/html", true},
+		{"image/svg+xml", true},
+		{"application/xhtml+xml", true},
+		{"application/xml", true},
+		{"text/xml", true},
+	}
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			actual := isTextType(test.input)
+			if actual != test.expected {
+				t.Errorf("expected %v, got %v", test.expected, actual)
+			}
+		})
+	}
+}

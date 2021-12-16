@@ -156,5 +156,8 @@ func isTextType(contentType string) bool {
 	if contentType == "application/xhtml+xml" {
 		return true
 	}
+	if contentType == "application/xml" {
+		return true
+	}
 	return false
 }
