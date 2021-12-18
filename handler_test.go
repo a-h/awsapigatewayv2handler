@@ -527,15 +527,7 @@ func TestIsTextType(t *testing.T) {
 
 // The changes took the code from 907,926 ns (nearly 1ms) to 694,463 ns per operation for 1MB of data.
 // Reduced allocations from 39 to 17.
-func BenchmarkHandler(b *testing.B) {
-	data := make([]byte, 1024*1024) // 1MB
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "image/jpeg")
-		io.Copy(w, bytes.NewReader(data))
-		if r.Method != http.MethodPost {
-			b.Fatalf("expected POST, got %v", r.Method)
-		}
-	})
+func BenchmarkLargeRequestBody(b *testing.B) {
 	req := events.APIGatewayV2HTTPRequest{
 		RawPath: "/path",
 		RequestContext: events.APIGatewayV2HTTPRequestContext{
@@ -543,7 +535,33 @@ func BenchmarkHandler(b *testing.B) {
 				Method: "POST",
 			},
 		},
+		Body:            binaryDataBase64,
+		IsBase64Encoded: true,
 	}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			b.Errorf("failed to read request body: %v", err)
+		}
+		base64EncodedRequestBody := base64.StdEncoding.EncodeToString(data)
+		if base64EncodedRequestBody != binaryDataBase64 {
+			b.Errorf("the request body was corrupted")
+		}
+		io.WriteString(w, "OK")
+	})
+	lh := NewLambdaHandler(handler)
+	for i := 0; i < b.N; i++ {
+		lh.Handle(context.Background(), req)
+	}
+}
+
+func BenchmarkLargeResponseBody(b *testing.B) {
+	req := events.APIGatewayV2HTTPRequest{
+		RawPath: "/path",
+	}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(w, bytes.NewReader(binaryData))
+	})
 	lh := NewLambdaHandler(handler)
 	for i := 0; i < b.N; i++ {
 		lh.Handle(context.Background(), req)
