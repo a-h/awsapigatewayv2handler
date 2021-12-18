@@ -17,25 +17,16 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-type Options struct {
-}
-
-var defaultOptions Options = Options{}
-
-func ListenAndServe(h http.Handler, opts *Options) {
+func ListenAndServe(h http.Handler) {
 	if h == nil {
 		h = http.DefaultServeMux
 	}
-	if opts == nil {
-		opts = &defaultOptions
-	}
-	lh := LambdaHandler{Handler: h, Options: *opts}
+	lh := LambdaHandler{Handler: h}
 	lambda.StartHandler(lh)
 }
 
 type LambdaHandler struct {
 	Handler http.Handler
-	Options Options
 }
 
 func (lh LambdaHandler) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
