@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -21,12 +20,23 @@ func ListenAndServe(h http.Handler) {
 	if h == nil {
 		h = http.DefaultServeMux
 	}
-	lh := LambdaHandler{Handler: h}
-	lambda.StartHandler(lh)
+	lambda.StartHandler(NewLambdaHandler(h))
+}
+
+func NewLambdaHandler(h http.Handler) LambdaHandler {
+	return LambdaHandler{
+		Handler:                h,
+		HandlerResponseHeaders: make(http.Header),
+		HandlerResponseBuffer:  new(bytes.Buffer),
+		base64Buffer:           new(bytes.Buffer),
+	}
 }
 
 type LambdaHandler struct {
-	Handler http.Handler
+	Handler                http.Handler
+	HandlerResponseHeaders http.Header
+	HandlerResponseBuffer  *bytes.Buffer
+	base64Buffer           *bytes.Buffer
 }
 
 func (lh LambdaHandler) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
@@ -39,27 +49,34 @@ func (lh LambdaHandler) Invoke(ctx context.Context, payload []byte) ([]byte, err
 	if err != nil {
 		return nil, err
 	}
-	buf := new(bytes.Buffer)
-	err = json.NewEncoder(buf).Encode(resp)
-	return buf.Bytes(), err
+	return json.Marshal(resp)
 }
 
 func (lh LambdaHandler) Handle(ctx context.Context, e events.APIGatewayV2HTTPRequest) (resp events.APIGatewayV2HTTPResponse, err error) {
 	// Convert the event to a HTTP request.
-	r, err := convertLambdaEventToHTTPRequest(e)
+	r, err := lh.convertLambdaEventToHTTPRequest(e)
 	if err != nil {
 		return
 	}
 
+	// Clear the reusable header map and buffer.
+	for k := range lh.HandlerResponseHeaders {
+		delete(lh.HandlerResponseHeaders, k)
+	}
+	lh.HandlerResponseBuffer.Reset()
 	// Execute the request.
-	w := httptest.NewRecorder()
+	w := &httptest.ResponseRecorder{
+		HeaderMap: lh.HandlerResponseHeaders,
+		Body:      lh.HandlerResponseBuffer,
+		Code:      200,
+	}
 	lh.Handler.ServeHTTP(w, r)
 
 	// Convert the recorded result to an API Gateway response.
-	return convertHTTPResponseToLambdaEvent(w.Result())
+	return lh.convertHTTPResponseToLambdaEvent(w.Result())
 }
 
-func convertLambdaEventToHTTPRequest(e events.APIGatewayV2HTTPRequest) (req *http.Request, err error) {
+func (lh LambdaHandler) convertLambdaEventToHTTPRequest(e events.APIGatewayV2HTTPRequest) (req *http.Request, err error) {
 	u := e.RawPath
 	if len(e.RawQueryString) > 0 {
 		u += "?" + e.RawQueryString
@@ -87,13 +104,34 @@ func getEventBody(e events.APIGatewayV2HTTPRequest) (body io.Reader, err error) 
 	return bytes.NewReader([]byte(e.Body)), nil
 }
 
-func convertHTTPResponseToLambdaEvent(result *http.Response) (resp events.APIGatewayV2HTTPResponse, err error) {
-	resp.StatusCode = result.StatusCode
-	resp.Body, resp.IsBase64Encoded, err = getEventBodyFromResponse(result)
+func (lh LambdaHandler) getBase64EncodedResponseBuffer() (s string, err error) {
+	lh.base64Buffer.Reset()
+	enc := base64.NewEncoder(base64.StdEncoding, lh.base64Buffer)
+	_, err = enc.Write(lh.HandlerResponseBuffer.Bytes())
 	if err != nil {
 		return
 	}
-	resp.MultiValueHeaders = result.Header.Clone()
+	err = enc.Close()
+	if err != nil {
+		return
+	}
+	s = lh.base64Buffer.String()
+	return
+}
+
+func (lh LambdaHandler) convertHTTPResponseToLambdaEvent(result *http.Response) (resp events.APIGatewayV2HTTPResponse, err error) {
+	resp.StatusCode = result.StatusCode
+	if isTextType(result.Header.Get("Content-Type")) {
+		resp.Body = lh.HandlerResponseBuffer.String()
+		resp.IsBase64Encoded = false
+	} else {
+		resp.Body, err = lh.getBase64EncodedResponseBuffer()
+		if err != nil {
+			return
+		}
+		resp.IsBase64Encoded = true
+	}
+	resp.MultiValueHeaders = result.Header
 	if result.ContentLength > -1 {
 		resp.MultiValueHeaders["Content-Length"] = []string{strconv.FormatInt(result.ContentLength, 10)}
 	}
@@ -108,24 +146,6 @@ func convertHTTPResponseToLambdaEvent(result *http.Response) (resp events.APIGat
 		}
 	}
 	return
-}
-
-func getEventBodyFromResponse(result *http.Response) (body string, isBase64Encoded bool, err error) {
-	if isTextType(result.Header.Get("Content-Type")) {
-		bdy, err := ioutil.ReadAll(result.Body)
-		return string(bdy), false, err
-	}
-	op := new(bytes.Buffer)
-	enc := base64.NewEncoder(base64.StdEncoding, op)
-	_, err = io.Copy(enc, result.Body)
-	if err != nil {
-		return "", false, err
-	}
-	err = enc.Close()
-	if err != nil {
-		return "", false, err
-	}
-	return op.String(), true, err
 }
 
 func isTextType(contentType string) bool {

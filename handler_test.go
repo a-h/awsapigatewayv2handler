@@ -1,13 +1,13 @@
 package awsapigatewayv2handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -153,13 +153,14 @@ func TestLambdaEventToHTTPRequest(t *testing.T) {
 			},
 		},
 	}
+	lh := NewLambdaHandler(http.NotFoundHandler())
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Arrange.
 			expected := test.expected()
 
 			// Act.
-			actual, err := convertLambdaEventToHTTPRequest(test.event)
+			actual, err := lh.convertLambdaEventToHTTPRequest(test.event)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -212,78 +213,6 @@ func compare(expected, actual io.Reader, t *testing.T) {
 	}
 	if diff := cmp.Diff(bytesExpected, bytesActual); diff != "" {
 		t.Errorf("body:\n%v", diff)
-	}
-}
-
-func TestHTTPResponseToLambdaEvent(t *testing.T) {
-	tests := []struct {
-		name     string
-		resp     *http.Response
-		expected events.APIGatewayV2HTTPResponse
-	}{
-		{
-			name: "headers",
-			resp: &http.Response{
-				Status:     "OK",
-				StatusCode: 200,
-				Header: map[string][]string{
-					"X-Powered-By": {"Annoying server that includes this."},
-				},
-				Body:          io.NopCloser(strings.NewReader("Hello, World")),
-				ContentLength: int64(len("Hello, World")),
-				Trailer: map[string][]string{
-					"Trailing": {"TrailingValue"},
-				},
-			},
-			expected: events.APIGatewayV2HTTPResponse{
-				StatusCode: 200,
-				MultiValueHeaders: map[string][]string{
-					"Content-Length": {strconv.Itoa(len("Hello, World"))},
-					"X-Powered-By":   {"Annoying server that includes this."},
-					"Trailing":       {"TrailingValue"},
-				},
-				Body:            "Hello, World",
-				IsBase64Encoded: false,
-			},
-		},
-		{
-			name: "binary content",
-			resp: &http.Response{
-				Status:     "OK",
-				StatusCode: 200,
-				Header: map[string][]string{
-					"Content-Type": {"application/pdf"},
-				},
-				Body:          io.NopCloser(strings.NewReader("Not really a PDF")),
-				ContentLength: int64(len("Not really a PDF")),
-			},
-			expected: events.APIGatewayV2HTTPResponse{
-				StatusCode: 200,
-				MultiValueHeaders: map[string][]string{
-					"Content-Length": {strconv.Itoa(len("Not really a PDF"))},
-					"Content-Type":   {"application/pdf"},
-				},
-				Body:            base64.StdEncoding.EncodeToString([]byte("Not really a PDF")),
-				IsBase64Encoded: true,
-			},
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			// Arrange.
-			expected := test.expected
-
-			// Act.
-			actual, err := convertHTTPResponseToLambdaEvent(test.resp)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			// Assert.
-			if diff := cmp.Diff(expected, actual); diff != "" {
-				t.Errorf("response:\n%s", diff)
-			}
-		})
 	}
 }
 
@@ -404,7 +333,7 @@ func TestHTTPHandlers(t *testing.T) {
 		},
 		{
 
-			name: "Binary content",
+			name: "binary content",
 			handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "image/jpeg")
 				io.Copy(w, strings.NewReader("test"))
@@ -429,17 +358,72 @@ func TestHTTPHandlers(t *testing.T) {
 				IsBase64Encoded: true,
 			},
 		},
+		{
+			name: "trailing headers",
+			req: events.APIGatewayV2HTTPRequest{
+				RawPath: "/path",
+				RequestContext: events.APIGatewayV2HTTPRequestContext{
+					HTTP: events.APIGatewayV2HTTPRequestContextHTTPDescription{
+						Method: "GET",
+					},
+				},
+			},
+			handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Add("X-Powered-By", "Annoying server that includes this.")
+				w.Header().Set("Trailer", "Trailing")
+				io.WriteString(w, "Hello, World")
+				w.Header().Add("Trailing", "Trailing Value")
+			}),
+			resp: events.APIGatewayV2HTTPResponse{
+				StatusCode: 200,
+				MultiValueHeaders: map[string][]string{
+					"Trailer":      {"Trailing"},
+					"Content-Type": {"text/plain; charset=utf-8"},
+					"X-Powered-By": {"Annoying server that includes this."},
+					"Trailing":     {"Trailing Value"},
+				},
+				Body:            "Hello, World",
+				IsBase64Encoded: false,
+			},
+		},
+		{
+			name: "JSON request / response",
+			req: events.APIGatewayV2HTTPRequest{
+				RawPath: "/path",
+				RequestContext: events.APIGatewayV2HTTPRequestContext{
+					HTTP: events.APIGatewayV2HTTPRequestContextHTTPDescription{
+						Method: "POST",
+					},
+				},
+				Body: `{ "test": "payload" }`,
+			},
+			handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				m := make(map[string]interface{})
+				if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+					t.Fatalf("failed to decode JSON: %v", err)
+				}
+				w.Header().Add("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]interface{}{"key": "value"})
+			}),
+			resp: events.APIGatewayV2HTTPResponse{
+				StatusCode: 200,
+				MultiValueHeaders: map[string][]string{
+					"Content-Type": {"application/json"},
+				},
+				Body:            `{"key":"value"}` + "\n",
+				IsBase64Encoded: false,
+			},
+		},
 	}
+	lh := NewLambdaHandler(http.NotFoundHandler())
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Arrange.
-			lh := LambdaHandler{
-				Handler: test.handler,
-			}
 			payload, err := json.Marshal(test.req)
 			expected := test.resp
 
 			// Act.
+			lh.Handler = test.handler
 			responseBytes, err := lh.Invoke(context.Background(), payload)
 			if err != nil {
 				t.Fatalf("error executing request: %v", err)
@@ -476,5 +460,30 @@ func TestIsTextType(t *testing.T) {
 				t.Errorf("expected %v, got %v", test.expected, actual)
 			}
 		})
+	}
+}
+
+// The changes took the code from 907,926 ns (nearly 1ms) to 694,463 ns per operation for 1MB of data.
+// Reduced allocations from 39 to 17.
+func BenchmarkHandler(b *testing.B) {
+	data := make([]byte, 1024*1024) // 1MB
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		io.Copy(w, bytes.NewReader(data))
+		if r.Method != http.MethodPost {
+			b.Fatalf("expected POST, got %v", r.Method)
+		}
+	})
+	req := events.APIGatewayV2HTTPRequest{
+		RawPath: "/path",
+		RequestContext: events.APIGatewayV2HTTPRequestContext{
+			HTTP: events.APIGatewayV2HTTPRequestContextHTTPDescription{
+				Method: "POST",
+			},
+		},
+	}
+	lh := NewLambdaHandler(handler)
+	for i := 0; i < b.N; i++ {
+		lh.Handle(context.Background(), req)
 	}
 }
