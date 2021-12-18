@@ -3,6 +3,7 @@ package awsapigatewayv2handler
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -333,7 +334,7 @@ func TestHTTPHandlers(t *testing.T) {
 		},
 		{
 
-			name: "binary content",
+			name: "Binary content",
 			handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "image/jpeg")
 				io.Copy(w, strings.NewReader("test"))
@@ -359,7 +360,7 @@ func TestHTTPHandlers(t *testing.T) {
 			},
 		},
 		{
-			name: "trailing headers",
+			name: "Trailing headers",
 			req: events.APIGatewayV2HTTPRequest{
 				RawPath: "/path",
 				RequestContext: events.APIGatewayV2HTTPRequestContext{
@@ -414,6 +415,55 @@ func TestHTTPHandlers(t *testing.T) {
 				IsBase64Encoded: false,
 			},
 		},
+		{
+			name: "Large request body",
+			req: events.APIGatewayV2HTTPRequest{
+				RawPath: "/path",
+				RequestContext: events.APIGatewayV2HTTPRequestContext{
+					HTTP: events.APIGatewayV2HTTPRequestContextHTTPDescription{
+						Method: "POST",
+					},
+				},
+				Body:            binaryDataBase64,
+				IsBase64Encoded: true,
+			},
+			handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				data, err := ioutil.ReadAll(r.Body)
+				if err != nil {
+					t.Errorf("failed to read request body: %v", err)
+				}
+				base64EncodedRequestBody := base64.StdEncoding.EncodeToString(data)
+				if base64EncodedRequestBody != binaryDataBase64 {
+					t.Errorf("the request body was corrupted")
+				}
+				io.WriteString(w, "OK")
+			}),
+			resp: events.APIGatewayV2HTTPResponse{
+				StatusCode: 200,
+				MultiValueHeaders: map[string][]string{
+					"Content-Type": {"text/plain; charset=utf-8"},
+				},
+				Body:            "OK",
+				IsBase64Encoded: false,
+			},
+		},
+		{
+			name: "Large response body",
+			req: events.APIGatewayV2HTTPRequest{
+				RawPath: "/path",
+			},
+			handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				io.Copy(w, bytes.NewReader(binaryData))
+			}),
+			resp: events.APIGatewayV2HTTPResponse{
+				StatusCode: 200,
+				MultiValueHeaders: map[string][]string{
+					"Content-Type": {"application/octet-stream"},
+				},
+				Body:            binaryDataBase64,
+				IsBase64Encoded: true,
+			},
+		},
 	}
 	lh := NewLambdaHandler(http.NotFoundHandler())
 	for _, test := range tests {
@@ -440,6 +490,18 @@ func TestHTTPHandlers(t *testing.T) {
 			}
 		})
 	}
+}
+
+var binaryData []byte
+var binaryDataBase64 string
+
+func init() {
+	binaryData = make([]byte, 1024*1024*5) // 5MB of data.
+	_, err := io.Copy(bytes.NewBuffer(binaryData), io.LimitReader(rand.Reader, int64(len(binaryData))))
+	if err != nil {
+		panic("could not create example binary data")
+	}
+	binaryDataBase64 = base64.StdEncoding.EncodeToString(binaryData)
 }
 
 func TestIsTextType(t *testing.T) {

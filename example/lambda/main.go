@@ -48,5 +48,5 @@ func main() {
 	}
 
 	// Start the Lambda handler.
-	awsapigatewayv2handler.ListenAndServe(http.DefaultServeMux, nil)
+	awsapigatewayv2handler.ListenAndServe(http.DefaultServeMux)
 }
