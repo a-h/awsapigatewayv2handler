@@ -69,7 +69,7 @@ func (lh LambdaHandler) Handle(ctx context.Context, e events.APIGatewayV2HTTPReq
 		Body:      lh.HandlerResponseBuffer,
 		Code:      200,
 	}
-	lh.Handler.ServeHTTP(w, r)
+	lh.Handler.ServeHTTP(w, r.WithContext(ctx))
 
 	// Convert the recorded result to an API Gateway response.
 	return lh.convertHTTPResponseToLambdaEvent(w.Result())

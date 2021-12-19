@@ -223,6 +223,7 @@ func TestHTTPHandlers(t *testing.T) {
 	tests := []struct {
 		name    string
 		handler http.Handler
+		ctx     context.Context
 		req     events.APIGatewayV2HTTPRequest
 		resp    events.APIGatewayV2HTTPResponse
 	}{
@@ -487,6 +488,26 @@ func TestHTTPHandlers(t *testing.T) {
 				IsBase64Encoded:   false,
 			},
 		},
+		{
+			name: "Context is passed through",
+			ctx:  testContext,
+			req: events.APIGatewayV2HTTPRequest{
+				RawPath:        "/path",
+				RawQueryString: "value=123&name=test",
+			},
+			handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				actualValue := r.Context().Value(testContextKey).(string)
+				if actualValue != "abc" {
+					t.Errorf("expected context value 'abc', got %q", actualValue)
+				}
+			}),
+			resp: events.APIGatewayV2HTTPResponse{
+				StatusCode:        200,
+				MultiValueHeaders: map[string][]string{},
+				Body:              "",
+				IsBase64Encoded:   false,
+			},
+		},
 	}
 	lh := NewLambdaHandler(http.NotFoundHandler())
 	for _, test := range tests {
@@ -497,7 +518,11 @@ func TestHTTPHandlers(t *testing.T) {
 
 			// Act.
 			lh.Handler = test.handler
-			responseBytes, err := lh.Invoke(context.Background(), payload)
+			ctx := context.Background()
+			if test.ctx != nil {
+				ctx = test.ctx
+			}
+			responseBytes, err := lh.Invoke(ctx, payload)
 			if err != nil {
 				t.Fatalf("error executing request: %v", err)
 			}
@@ -514,6 +539,11 @@ func TestHTTPHandlers(t *testing.T) {
 		})
 	}
 }
+
+type testContextType string
+
+var testContextKey = testContextType("testContext")
+var testContext = context.WithValue(context.Background(), testContextKey, "abc")
 
 var binaryData []byte
 var binaryDataBase64 string
