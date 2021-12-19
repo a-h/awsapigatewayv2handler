@@ -464,6 +464,27 @@ func TestHTTPHandlers(t *testing.T) {
 				IsBase64Encoded: true,
 			},
 		},
+		{
+			name: "Querystring",
+			req: events.APIGatewayV2HTTPRequest{
+				RawPath:        "/path",
+				RawQueryString: "value=123&name=test",
+			},
+			handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if value := r.URL.Query().Get("value"); value != "123" {
+					t.Errorf("expected value '123', got %q", value)
+				}
+				if name := r.URL.Query().Get("name"); name != "test" {
+					t.Errorf("expected name 'test', got %q", name)
+				}
+			}),
+			resp: events.APIGatewayV2HTTPResponse{
+				StatusCode:        200,
+				MultiValueHeaders: map[string][]string{},
+				Body:              "",
+				IsBase64Encoded:   false,
+			},
+		},
 	}
 	lh := NewLambdaHandler(http.NotFoundHandler())
 	for _, test := range tests {
@@ -529,7 +550,8 @@ func TestIsTextType(t *testing.T) {
 // Reduced allocations from 39 to 17.
 func BenchmarkLargeRequestBody(b *testing.B) {
 	req := events.APIGatewayV2HTTPRequest{
-		RawPath: "/path",
+		RawPath:        "/path",
+		RawQueryString: "val=123",
 		RequestContext: events.APIGatewayV2HTTPRequestContext{
 			HTTP: events.APIGatewayV2HTTPRequestContextHTTPDescription{
 				Method: "POST",
@@ -557,7 +579,8 @@ func BenchmarkLargeRequestBody(b *testing.B) {
 
 func BenchmarkLargeResponseBody(b *testing.B) {
 	req := events.APIGatewayV2HTTPRequest{
-		RawPath: "/path",
+		RawPath:        "/path",
+		RawQueryString: "val=123",
 	}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		io.Copy(w, bytes.NewReader(binaryData))

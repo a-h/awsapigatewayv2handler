@@ -78,9 +78,6 @@ func (lh LambdaHandler) Handle(ctx context.Context, e events.APIGatewayV2HTTPReq
 
 func (lh LambdaHandler) convertLambdaEventToHTTPRequest(e events.APIGatewayV2HTTPRequest) (req *http.Request, err error) {
 	u := e.RawPath
-	if len(e.RawQueryString) > 0 {
-		u += "?" + e.RawQueryString
-	}
 	var body io.Reader
 	if e.Body != "" {
 		if e.IsBase64Encoded {
@@ -95,6 +92,7 @@ func (lh LambdaHandler) convertLambdaEventToHTTPRequest(e events.APIGatewayV2HTT
 		}
 	}
 	req, err = http.NewRequest(e.RequestContext.HTTP.Method, u, body)
+	req.URL.RawQuery = e.RawQueryString
 	for k, v := range e.Headers {
 		req.Header.Add(k, v)
 	}
