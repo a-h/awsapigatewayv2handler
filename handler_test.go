@@ -107,6 +107,7 @@ func TestLambdaEventToHTTPRequest(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
+				r.Header.Add("Content-Length", "2")
 				r.Header.Add("Content-Type", "application/json")
 				return r
 			},
@@ -130,6 +131,7 @@ func TestLambdaEventToHTTPRequest(t *testing.T) {
 				if err != nil {
 					panic(err)
 				}
+				r.Header.Add("Content-Length", "5")
 				return r
 			},
 		},

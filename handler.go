@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -77,46 +76,41 @@ func (lh LambdaHandler) Handle(ctx context.Context, e events.APIGatewayV2HTTPReq
 }
 
 func (lh LambdaHandler) convertLambdaEventToHTTPRequest(e events.APIGatewayV2HTTPRequest) (req *http.Request, err error) {
-	u := e.RawPath
-	var body io.Reader
-	if e.Body != "" {
-		if e.IsBase64Encoded {
-			data, err := base64.StdEncoding.DecodeString(e.Body)
-			if err != nil {
-				err = fmt.Errorf("awsapigatewayv2handler: failed to get event body: %w", err)
-				return req, err
-			}
-			body = bytes.NewReader(data)
-		} else {
-			body = bytes.NewReader([]byte(e.Body))
-		}
-	}
-	req, err = http.NewRequest(e.RequestContext.HTTP.Method, u, body)
+	body, cl := getRequestBody(e.Body, e.IsBase64Encoded)
+	req, err = http.NewRequest(e.RequestContext.HTTP.Method, e.RawPath, body)
 	req.URL.RawQuery = e.RawQueryString
 	for k, v := range e.Headers {
 		req.Header.Add(k, v)
 	}
+	if cl > 0 {
+		req.Header.Set("Content-Length", strconv.Itoa(cl))
+		req.ContentLength = int64(cl)
+	}
 	return
+}
+
+func getRequestBody(s string, isBase64Encoded bool) (body io.Reader, contentLength int) {
+	if s == "" {
+		return nil, -1
+	}
+	if isBase64Encoded {
+		var padding int
+		for _, c := range s[len(s)-2:] {
+			if c == '=' {
+				padding++
+			}
+		}
+		contentLength = (3 * (len(s) / 4)) - padding
+		return base64.NewDecoder(base64.StdEncoding, bytes.NewReader([]byte(s))), contentLength
+	}
+	return bytes.NewReader([]byte(s)), len(s)
 }
 
 func (lh LambdaHandler) convertHTTPResponseToLambdaEvent(result *http.Response) (resp events.APIGatewayV2HTTPResponse, err error) {
 	resp.StatusCode = result.StatusCode
-	if isTextType(result.Header.Get("Content-Type")) {
-		resp.IsBase64Encoded = false
-		resp.Body = lh.HandlerResponseBuffer.String()
-	} else {
-		resp.IsBase64Encoded = true
-		lh.base64Buffer.Reset()
-		enc := base64.NewEncoder(base64.StdEncoding, lh.base64Buffer)
-		_, err = enc.Write(lh.HandlerResponseBuffer.Bytes())
-		if err != nil {
-			return
-		}
-		err = enc.Close()
-		if err != nil {
-			return
-		}
-		resp.Body = lh.base64Buffer.String()
+	resp.Body, resp.IsBase64Encoded, err = lh.getResponseBody(result)
+	if err != nil {
+		return
 	}
 	resp.MultiValueHeaders = result.Header
 	if result.ContentLength > -1 {
@@ -133,6 +127,23 @@ func (lh LambdaHandler) convertHTTPResponseToLambdaEvent(result *http.Response) 
 		}
 	}
 	return
+}
+
+func (lh LambdaHandler) getResponseBody(result *http.Response) (body string, isBase64Encoded bool, err error) {
+	if isTextType(result.Header.Get("Content-Type")) {
+		return lh.HandlerResponseBuffer.String(), false, nil
+	}
+	lh.base64Buffer.Reset()
+	enc := base64.NewEncoder(base64.StdEncoding, lh.base64Buffer)
+	_, err = enc.Write(lh.HandlerResponseBuffer.Bytes())
+	if err != nil {
+		return
+	}
+	err = enc.Close()
+	if err != nil {
+		return
+	}
+	return lh.base64Buffer.String(), true, nil
 }
 
 func isTextType(contentType string) bool {
