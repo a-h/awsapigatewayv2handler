@@ -31,6 +31,10 @@ func NewExampleStack(scope constructs.Construct, id string, props *ExampleStackP
 		Bundling:   bundlingOptions,
 		MemorySize: jsii.Number(1024),
 		Timeout:    awscdk.Duration_Millis(jsii.Number(15000)),
+		Tracing:    awslambda.Tracing_ACTIVE,
+		Environment: &map[string]*string{
+			"AWS_XRAY_CONTEXT_MISSING": jsii.String("IGNORE_ERROR"),
+		},
 	})
 	fi := awsapigatewayv2integrations.NewHttpLambdaIntegration(jsii.String("handlerIntegration"), f, &awsapigatewayv2integrations.HttpLambdaIntegrationProps{})
 	endpoint := awsapigatewayv2.NewHttpApi(stack, jsii.String("apigatewayV2Example"), &awsapigatewayv2.HttpApiProps{
