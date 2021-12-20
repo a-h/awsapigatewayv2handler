@@ -549,7 +549,7 @@ var binaryData []byte
 var binaryDataBase64 string
 
 func init() {
-	binaryData = make([]byte, 1024*1024*5) // 5MB of data.
+	binaryData = make([]byte, 1024*1024*64) // 65KB of data.
 	_, err := io.Copy(bytes.NewBuffer(binaryData), io.LimitReader(rand.Reader, int64(len(binaryData))))
 	if err != nil {
 		panic("could not create example binary data")
@@ -593,14 +593,6 @@ func BenchmarkLargeRequestBody(b *testing.B) {
 		IsBase64Encoded: true,
 	}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		data, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			b.Errorf("failed to read request body: %v", err)
-		}
-		base64EncodedRequestBody := base64.StdEncoding.EncodeToString(data)
-		if base64EncodedRequestBody != binaryDataBase64 {
-			b.Errorf("the request body was corrupted")
-		}
 		io.WriteString(w, "OK")
 	})
 	lh := NewLambdaHandler(handler)
