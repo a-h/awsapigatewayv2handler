@@ -80,9 +80,11 @@ func getRequestBody(s string, isBase64Encoded bool) (body io.Reader, contentLeng
 	}
 	if isBase64Encoded {
 		var padding int
-		for _, c := range s[len(s)-2:] {
-			if c == '=' {
-				padding++
+		if len(s) > 1 {
+			for _, c := range s[len(s)-2:] {
+				if c == '=' {
+					padding++
+				}
 			}
 		}
 		contentLength = (3 * (len(s) / 4)) - padding
