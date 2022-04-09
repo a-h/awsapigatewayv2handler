@@ -28,7 +28,7 @@ func TestLambdaEventToHTTPRequest(t *testing.T) {
 				RawPath: "/path",
 			},
 			expected: func() *http.Request {
-				r, err := http.NewRequest(http.MethodGet, "/path", nil)
+				r, err := http.NewRequest(http.MethodGet, "/path", http.NoBody)
 				if err != nil {
 					panic(err)
 				}
@@ -46,7 +46,7 @@ func TestLambdaEventToHTTPRequest(t *testing.T) {
 				},
 			},
 			expected: func() *http.Request {
-				r, err := http.NewRequest(http.MethodPost, "/path", nil)
+				r, err := http.NewRequest(http.MethodPost, "/path", http.NoBody)
 				if err != nil {
 					panic(err)
 				}
@@ -63,7 +63,7 @@ func TestLambdaEventToHTTPRequest(t *testing.T) {
 				},
 			},
 			expected: func() *http.Request {
-				r, err := http.NewRequest(http.MethodGet, "/path", nil)
+				r, err := http.NewRequest(http.MethodGet, "/path", http.NoBody)
 				if err != nil {
 					panic(err)
 				}
@@ -79,7 +79,7 @@ func TestLambdaEventToHTTPRequest(t *testing.T) {
 				RawQueryString: "a=123&b=456",
 			},
 			expected: func() *http.Request {
-				r, err := http.NewRequest(http.MethodGet, "/path?a=123&b=456", nil)
+				r, err := http.NewRequest(http.MethodGet, "/path?a=123&b=456", http.NoBody)
 				if err != nil {
 					panic(err)
 				}
@@ -145,7 +145,7 @@ func TestLambdaEventToHTTPRequest(t *testing.T) {
 				},
 			},
 			expected: func() *http.Request {
-				r, err := http.NewRequest(http.MethodGet, "/path", nil)
+				r, err := http.NewRequest(http.MethodGet, "/path", http.NoBody)
 				if err != nil {
 					panic(err)
 				}
