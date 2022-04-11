@@ -76,7 +76,7 @@ func (lh LambdaHandler) convertLambdaEventToHTTPRequest(e events.APIGatewayV2HTT
 
 func getRequestBody(s string, isBase64Encoded bool) (body io.Reader, contentLength int) {
 	if s == "" {
-		return nil, -1
+		return http.NoBody, -1
 	}
 	if isBase64Encoded {
 		var padding int
