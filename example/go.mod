@@ -5,7 +5,7 @@ go 1.16
 replace github.com/a-h/awsapigatewayv2handler => ../
 
 require (
-	github.com/a-h/awsapigatewayv2handler v0.0.0-20211219151045-eae74b4c87c7
+	github.com/a-h/awsapigatewayv2handler v0.0.0-20220713111419-eae1b0de1c53
 	github.com/aws/aws-cdk-go/awscdk/v2 v2.2.0
 	github.com/aws/aws-cdk-go/awscdkapigatewayv2alpha/v2 v2.2.0-alpha.0
 	github.com/aws/aws-cdk-go/awscdkapigatewayv2integrationsalpha/v2 v2.2.0-alpha.0
