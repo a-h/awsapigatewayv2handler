@@ -239,8 +239,8 @@ func TestHTTPHandlers(t *testing.T) {
 				StatusCode:      200,
 				Body:            "Hello, World",
 				IsBase64Encoded: false,
-				MultiValueHeaders: map[string][]string{
-					"Content-Type": {"text/plain; charset=utf-8"},
+				Headers: map[string]string{
+					"Content-Type": "text/plain; charset=utf-8",
 				},
 			},
 		},
@@ -263,8 +263,8 @@ func TestHTTPHandlers(t *testing.T) {
 				StatusCode:      200,
 				Body:            `{"msg":"Hello Adrian"}` + "\n",
 				IsBase64Encoded: false,
-				MultiValueHeaders: map[string][]string{
-					"Content-Type": {"application/json"},
+				Headers: map[string]string{
+					"Content-Type": "application/json",
 				},
 			},
 		},
@@ -278,10 +278,10 @@ func TestHTTPHandlers(t *testing.T) {
 				RawPath: "/path",
 			},
 			resp: events.APIGatewayV2HTTPResponse{
-				StatusCode:        404,
-				Body:              "",
-				IsBase64Encoded:   false,
-				MultiValueHeaders: map[string][]string{},
+				StatusCode:      404,
+				Body:            "",
+				IsBase64Encoded: false,
+				Headers:         map[string]string{},
 			},
 		},
 		{
@@ -298,9 +298,9 @@ func TestHTTPHandlers(t *testing.T) {
 				StatusCode:      200,
 				Body:            "",
 				IsBase64Encoded: false,
-				MultiValueHeaders: map[string][]string{
-					"X-Custom":   {"thing"},
-					"X-Custom-2": {"don't need the X- anymore"},
+				Headers: map[string]string{
+					"X-Custom":   "thing",
+					"X-Custom-2": "don't need the X- anymore",
 				},
 			},
 		},
@@ -323,12 +323,9 @@ func TestHTTPHandlers(t *testing.T) {
 			},
 			resp: events.APIGatewayV2HTTPResponse{
 				StatusCode: 200,
-				MultiValueHeaders: map[string][]string{
-					"Content-Type": {"text/plain; charset=utf-8"},
-					"Set-Cookie": {
-						"cookie1=value1",
-						"cookie2=value2",
-					},
+				Headers: map[string]string{
+					"Content-Type": "text/plain; charset=utf-8",
+					"Set-Cookie":   "cookie1=value1,cookie2=value2",
 				},
 				Body:            "Hello, World",
 				IsBase64Encoded: false,
@@ -355,8 +352,8 @@ func TestHTTPHandlers(t *testing.T) {
 			},
 			resp: events.APIGatewayV2HTTPResponse{
 				StatusCode: 200,
-				MultiValueHeaders: map[string][]string{
-					"Content-Type": {"image/jpeg"},
+				Headers: map[string]string{
+					"Content-Type": "image/jpeg",
 				},
 				Body:            base64.StdEncoding.EncodeToString([]byte("test")),
 				IsBase64Encoded: true,
@@ -380,11 +377,11 @@ func TestHTTPHandlers(t *testing.T) {
 			}),
 			resp: events.APIGatewayV2HTTPResponse{
 				StatusCode: 200,
-				MultiValueHeaders: map[string][]string{
-					"Trailer":      {"Trailing"},
-					"Content-Type": {"text/plain; charset=utf-8"},
-					"X-Powered-By": {"Annoying server that includes this."},
-					"Trailing":     {"Trailing Value"},
+				Headers: map[string]string{
+					"Trailer":      "Trailing",
+					"Content-Type": "text/plain; charset=utf-8",
+					"X-Powered-By": "Annoying server that includes this.",
+					"Trailing":     "Trailing Value",
 				},
 				Body:            "Hello, World",
 				IsBase64Encoded: false,
@@ -411,8 +408,8 @@ func TestHTTPHandlers(t *testing.T) {
 			}),
 			resp: events.APIGatewayV2HTTPResponse{
 				StatusCode: 200,
-				MultiValueHeaders: map[string][]string{
-					"Content-Type": {"application/json"},
+				Headers: map[string]string{
+					"Content-Type": "application/json",
 				},
 				Body:            `{"key":"value"}` + "\n",
 				IsBase64Encoded: false,
@@ -443,8 +440,8 @@ func TestHTTPHandlers(t *testing.T) {
 			}),
 			resp: events.APIGatewayV2HTTPResponse{
 				StatusCode: 200,
-				MultiValueHeaders: map[string][]string{
-					"Content-Type": {"text/plain; charset=utf-8"},
+				Headers: map[string]string{
+					"Content-Type": "text/plain; charset=utf-8",
 				},
 				Body:            "OK",
 				IsBase64Encoded: false,
@@ -460,8 +457,8 @@ func TestHTTPHandlers(t *testing.T) {
 			}),
 			resp: events.APIGatewayV2HTTPResponse{
 				StatusCode: 200,
-				MultiValueHeaders: map[string][]string{
-					"Content-Type": {"application/octet-stream"},
+				Headers: map[string]string{
+					"Content-Type": "application/octet-stream",
 				},
 				Body:            binaryDataBase64,
 				IsBase64Encoded: true,
@@ -482,10 +479,10 @@ func TestHTTPHandlers(t *testing.T) {
 				}
 			}),
 			resp: events.APIGatewayV2HTTPResponse{
-				StatusCode:        200,
-				MultiValueHeaders: map[string][]string{},
-				Body:              "",
-				IsBase64Encoded:   false,
+				StatusCode:      200,
+				Headers:         map[string]string{},
+				Body:            "",
+				IsBase64Encoded: false,
 			},
 		},
 		{
@@ -502,10 +499,10 @@ func TestHTTPHandlers(t *testing.T) {
 				}
 			}),
 			resp: events.APIGatewayV2HTTPResponse{
-				StatusCode:        200,
-				MultiValueHeaders: map[string][]string{},
-				Body:              "",
-				IsBase64Encoded:   false,
+				StatusCode:      200,
+				Headers:         map[string]string{},
+				Body:            "",
+				IsBase64Encoded: false,
 			},
 		},
 	}

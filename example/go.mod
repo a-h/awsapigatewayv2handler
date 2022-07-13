@@ -2,6 +2,8 @@ module example
 
 go 1.16
 
+replace github.com/a-h/awsapigatewayv2handler => ../
+
 require (
 	github.com/a-h/awsapigatewayv2handler v0.0.0-20211219151045-eae74b4c87c7
 	github.com/aws/aws-cdk-go/awscdk/v2 v2.2.0

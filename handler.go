@@ -97,12 +97,15 @@ func (lh LambdaHandler) convertHTTPResponseToLambdaEvent(rec *httptest.ResponseR
 	result := rec.Result()
 	resp.StatusCode = result.StatusCode
 	resp.Body, resp.IsBase64Encoded = lh.getResponseBody(rec)
-	resp.MultiValueHeaders = result.Header
+	resp.Headers = make(map[string]string, len(result.Header)+len(result.Trailer))
+	for k, v := range result.Header {
+		resp.Headers[k] = strings.Join(v, ",")
+	}
 	if result.ContentLength > -1 {
-		resp.MultiValueHeaders["Content-Length"] = []string{strconv.FormatInt(result.ContentLength, 10)}
+		resp.Headers["Content-Length"] = strconv.FormatInt(result.ContentLength, 10)
 	}
 	for k, v := range result.Trailer {
-		resp.MultiValueHeaders[k] = v
+		resp.Headers[k] = strings.Join(v, ",")
 	}
 	cookies := result.Cookies()
 	if len(cookies) > 0 {
