@@ -17,12 +17,13 @@ func NewExampleStack(scope constructs.Construct, id string, props *awscdk.StackP
 		GoBuildFlags: &[]*string{jsii.String(`-ldflags "-s -w"`)},
 	}
 	f := awslambdago.NewGoFunction(stack, jsii.String("handler"), &awslambdago.GoFunctionProps{
-		Runtime:    awslambda.Runtime_GO_1_X(),
-		Entry:      jsii.String("../lambda"),
-		Bundling:   bundlingOptions,
-		MemorySize: jsii.Number(1024),
-		Timeout:    awscdk.Duration_Millis(jsii.Number(15000)),
-		Tracing:    awslambda.Tracing_ACTIVE,
+		Runtime:      awslambda.Runtime_PROVIDED_AL2(),
+		Architecture: awslambda.Architecture_ARM_64(),
+		Entry:        jsii.String("../lambda"),
+		Bundling:     bundlingOptions,
+		MemorySize:   jsii.Number(1024),
+		Timeout:      awscdk.Duration_Millis(jsii.Number(15000)),
+		Tracing:      awslambda.Tracing_ACTIVE,
 		Environment: &map[string]*string{
 			"AWS_XRAY_CONTEXT_MISSING": jsii.String("IGNORE_ERROR"),
 		},
