@@ -27,6 +27,16 @@ func NewExampleStack(scope constructs.Construct, id string, props *awscdk.StackP
 			"AWS_XRAY_CONTEXT_MISSING": jsii.String("IGNORE_ERROR"),
 		},
 	})
+	// Add a Function URL.
+	url := f.AddFunctionUrl(&awslambda.FunctionUrlOptions{
+		AuthType: awslambda.FunctionUrlAuthType_NONE,
+	})
+	awscdk.NewCfnOutput(stack, jsii.String("lambdaFunctionUrl"), &awscdk.CfnOutputProps{
+		ExportName: jsii.String("lambdaFunctionUrl"),
+		Value:      url.Url(),
+	})
+
+	// Use an API Gateway V2 endpoint.
 	fi := awsapigatewayv2integrations.NewHttpLambdaIntegration(jsii.String("handlerIntegration"), f, &awsapigatewayv2integrations.HttpLambdaIntegrationProps{})
 	endpoint := awsapigatewayv2.NewHttpApi(stack, jsii.String("apigatewayV2Example"), &awsapigatewayv2.HttpApiProps{
 		DefaultIntegration: fi,
