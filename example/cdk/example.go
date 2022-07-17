@@ -14,7 +14,7 @@ func NewExampleStack(scope constructs.Construct, id string, props *awscdk.StackP
 	stack := awscdk.NewStack(scope, &id, props)
 
 	bundlingOptions := &awslambdago.BundlingOptions{
-		GoBuildFlags: &[]*string{jsii.String(`-ldflags "-s -w"`)},
+		GoBuildFlags: &[]*string{jsii.String(`-ldflags "-s -w" -tags lambda.norpc`)},
 	}
 	f := awslambdago.NewGoFunction(stack, jsii.String("handler"), &awslambdago.GoFunctionProps{
 		Runtime:      awslambda.Runtime_PROVIDED_AL2(),
