@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	awsapigatewayv2 "github.com/aws/aws-cdk-go/awscdkapigatewayv2alpha/v2"
@@ -24,10 +26,10 @@ func NewExampleStack(scope constructs.Construct, id string, props *awscdk.StackP
 		MemorySize:   jsii.Number(1024),
 		Timeout:      awscdk.Duration_Millis(jsii.Number(15000)),
 		Tracing:      awslambda.Tracing_ACTIVE,
-		Environment: &map[string]*string{
-			"AWS_XRAY_CONTEXT_MISSING": jsii.String("IGNORE_ERROR"),
-		},
 	})
+	otelLambdaLayerARN := fmt.Sprintf("arn:aws:lambda:%s:901920570463:layer:aws-otel-collector-arm64-ver-0-51-0:1", *stack.Region())
+	otelLambdaLayer := awslambda.LayerVersion_FromLayerVersionArn(stack, jsii.String("otelLambdaLayer"), jsii.String(otelLambdaLayerARN))
+	f.AddLayers(otelLambdaLayer)
 	// Add a Function URL.
 	url := f.AddFunctionUrl(&awslambda.FunctionUrlOptions{
 		AuthType: awslambda.FunctionUrlAuthType_NONE,
